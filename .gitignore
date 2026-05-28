@@ -2,3 +2,6 @@ tmp-local-test/
 .DS_Store
 scripts/__pycache__/
 *.pyc
+worker/node_modules/
+worker/.wrangler/
+worker/wrangler.toml
