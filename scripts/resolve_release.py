@@ -40,7 +40,7 @@ def github_json(path: str, token: str | None, allow_404: bool = False) -> dict |
     request = urllib.request.Request(f"{GITHUB_API}{path}")
     request.add_header("Accept", "application/vnd.github+json")
     request.add_header("X-GitHub-Api-Version", "2022-11-28")
-    request.add_header("User-Agent", "app-download-release-workflow")
+    request.add_header("User-Agent", "www-download-release-workflow")
     if token:
         request.add_header("Authorization", f"Bearer {token}")
 
