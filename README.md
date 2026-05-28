@@ -74,15 +74,19 @@ The worker deployment workflow is manual-only and accepts an optional `tag` inpu
 
 Required GitHub secret for worker deployment:
 
-- `CLOUDFLARE_API_TOKEN`
+- `BW_SM_ACCESS_TOKEN`
 
 Required GitHub variables for worker deployment:
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_WORKER_NAME`
-- `CLOUDFLARE_WORKER_TEST_NAME`
-- `CLOUDFLARE_WORKER_KV_NAMESPACE_ID`
-- `CLOUDFLARE_WORKER_R2_BUCKET`
+- `BW_SECRET_ID_CF_API_TOKEN`
+- `CF_WORKER_NAME`
+- `CF_WORKER_TEST_NAME`
+- `CF_WORKER_KV_NAMESPACE_ID`
+- `R2_BUCKET`
+
+`BW_SECRET_ID_CF_API_TOKEN` should point to a Bitwarden secret containing the Cloudflare API token used for Worker deployment.
+
+`CF_ACCOUNT_ID` is not required. The deployment relies on a Cloudflare API token that can query the target account, so Wrangler can resolve the account without a committed or repository-scoped account ID variable.
 
 The deployment workflow renders `worker/wrangler.toml` at runtime, so those values do not need to be committed into the repository.
 
