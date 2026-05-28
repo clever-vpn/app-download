@@ -57,6 +57,6 @@ The project copies the repository workflow rules into `.github/copilot-instructi
 Enable the hook locally from the repository root:
 
 ```bash
-git config core.hooksPath app-download/.githooks
-chmod +x app-download/.githooks/pre-push
+git config core.hooksPath www-download/.githooks
+chmod +x www-download/.githooks/pre-push
 ```
