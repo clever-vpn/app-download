@@ -1,0 +1,138 @@
+name: Deploy Download Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Optional release tag for this repository, for example v1.2.3
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.resolve.outputs.release_tag }}
+      target_commit: ${{ steps.resolve.outputs.target_commit }}
+      tag_exists: ${{ steps.resolve.outputs.tag_exists }}
+      version_source: ${{ steps.resolve.outputs.version_source }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag and target commit
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: python3 scripts/resolve_release.py
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - worker_name: ${{ vars.CLOUDFLARE_WORKER_NAME }}
+            version_key: download-version
+          - worker_name: ${{ vars.CLOUDFLARE_WORKER_TEST_NAME }}
+            version_key: download-test-version
+    steps:
+      - name: Checkout repository at target commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.target_commit }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: worker/package.json
+
+      - name: Install worker dependencies
+        run: npm install
+        working-directory: worker
+
+      - name: Validate worker source
+        run: npm run check
+        working-directory: worker
+
+      - name: Render Wrangler config
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKER_NAME: ${{ matrix.worker_name }}
+          CLOUDFLARE_WORKER_KV_NAMESPACE_ID: ${{ vars.CLOUDFLARE_WORKER_KV_NAMESPACE_ID }}
+          CLOUDFLARE_WORKER_R2_BUCKET: ${{ vars.CLOUDFLARE_WORKER_R2_BUCKET }}
+          VERSION_KEY: ${{ matrix.version_key }}
+        run: npm run render-config
+        working-directory: worker
+
+      - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --config wrangler.toml
+        working-directory: worker
+
+  publish:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - deploy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          TARGET_COMMIT: ${{ needs.prepare.outputs.target_commit }}
+          TAG_EXISTS: ${{ needs.prepare.outputs.tag_exists }}
+          PROD_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
+          TEST_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_TEST_NAME }}
+        run: |
+          set -euo pipefail
+
+          tag_created=0
+          cleanup() {
+            if [[ "$tag_created" == "1" ]]; then
+              git push origin ":refs/tags/${RELEASE_TAG}"
+            fi
+          }
+          trap cleanup ERR
+
+          cat > release-notes.md <<EOF
+          # ${RELEASE_TAG}
+
+          Cloudflare Worker deployment built from commit ${TARGET_COMMIT}.
+
+          - ${PROD_WORKER_NAME}: VERSION_KEY=download-version
+          - ${TEST_WORKER_NAME}: VERSION_KEY=download-test-version
+          EOF
+
+          if [[ "$TAG_EXISTS" != "true" ]]; then
+            git push origin "${TARGET_COMMIT}:refs/tags/${RELEASE_TAG}"
+            tag_created=1
+          fi
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" \
+              --target "$TARGET_COMMIT" \
+              --title "$RELEASE_TAG" \
+              --notes-file release-notes.md
+          fi
+
+          trap - ERR

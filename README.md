@@ -50,6 +50,42 @@ The manual workflow is defined in `.github/workflows/publish-to-r2.yml`.
 
 `BW_SECRET_ID_SOURCE_GH_TOKEN` should point to a Bitwarden secret containing a GitHub token that can read the source repositories when they are private.
 
+## Cloudflare Worker Deployment
+
+The repository also includes a Cloudflare Worker under `worker/` that serves files from the current download version stored in KV.
+
+Behavior:
+
+- Read a configurable KV key from the `clever-vpn-www-version` namespace.
+- Fetch the requested object from `www-download/<download-version>/...` in R2.
+- If the exact file name does not exist, retry inside the same folder by matching a file name that inserts an arbitrary semantic version after the first `-`, for example `CleverVPN-arm64-v8a.apk` -> `CleverVPN-v2.1.0-arm64-v8a.apk`.
+
+The deployment workflow publishes two Workers from the same source code:
+
+- Production worker: uses KV key `download-version`
+- Test worker: uses KV key `download-test-version`
+
+The worker deployment workflow is manual-only and accepts an optional `tag` input.
+
+- If `tag` is provided and already exists, the deployment builds from the commit currently pointed to by that tag.
+- If `tag` is provided and does not exist, the deployment builds from the current `main` HEAD.
+- If `tag` is omitted, the workflow reads the latest GitHub Release tag, increments the patch version, and uses the resulting `v`-prefixed tag.
+- A missing tag is created only in the final publish stage immediately before the GitHub Release is created. If release creation fails, the workflow deletes that newly created tag before exiting.
+
+Required GitHub secret for worker deployment:
+
+- `CLOUDFLARE_API_TOKEN`
+
+Required GitHub variables for worker deployment:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_WORKER_NAME`
+- `CLOUDFLARE_WORKER_TEST_NAME`
+- `CLOUDFLARE_WORKER_KV_NAMESPACE_ID`
+- `CLOUDFLARE_WORKER_R2_BUCKET`
+
+The deployment workflow renders `worker/wrangler.toml` at runtime, so those values do not need to be committed into the repository.
+
 ## Development Rules
 
 The project copies the repository workflow rules into `.github/copilot-instructions.md` and provides a local Git pre-push hook in `.githooks/pre-push` that blocks pushes to `main`.
