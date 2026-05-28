@@ -3,10 +3,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const required = [
-  "CLOUDFLARE_ACCOUNT_ID",
-  "CLOUDFLARE_WORKER_NAME",
-  "CLOUDFLARE_WORKER_KV_NAMESPACE_ID",
-  "CLOUDFLARE_WORKER_R2_BUCKET",
+  "CF_WORKER_NAME",
+  "CF_WORKER_KV_NAMESPACE_ID",
+  "R2_BUCKET",
   "VERSION_KEY",
 ];
 
@@ -19,19 +18,18 @@ if (missing.length > 0) {
 const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const contents = [
-  `name = "${process.env.CLOUDFLARE_WORKER_NAME}"`,
+  `name = "${process.env.CF_WORKER_NAME}"`,
   'main = "src/index.js"',
   'compatibility_date = "2026-05-28"',
   'workers_dev = true',
-  `account_id = "${process.env.CLOUDFLARE_ACCOUNT_ID}"`,
   "",
   "[[kv_namespaces]]",
   'binding = "CLEVER_VPN_WWW_VERSION"',
-  `id = "${process.env.CLOUDFLARE_WORKER_KV_NAMESPACE_ID}"`,
+  `id = "${process.env.CF_WORKER_KV_NAMESPACE_ID}"`,
   "",
   "[[r2_buckets]]",
   'binding = "WWW_DOWNLOAD"',
-  `bucket_name = "${process.env.CLOUDFLARE_WORKER_R2_BUCKET}"`,
+  `bucket_name = "${process.env.R2_BUCKET}"`,
   "",
   "[vars]",
   `VERSION_KEY = "${process.env.VERSION_KEY}"`,
