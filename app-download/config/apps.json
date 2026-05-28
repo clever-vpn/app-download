@@ -1,0 +1,22 @@
+{
+  "apps": [
+    {
+      "repo": "clever-vpn/clever-vpn-client-windows",
+      "source_release_tag": "v2.1.0",
+      "target_dir": "windows",
+      "asset_suffixes": [".exe", ".msi"]
+    },
+    {
+      "repo": "clever-vpn/clever-vpn-client-apple",
+      "source_release_tag": "v2.1.0",
+      "target_dir": "apple",
+      "asset_suffixes": [".dmg"]
+    },
+    {
+      "repo": "clever-vpn/clever-vpn-client-android",
+      "source_release_tag": "v2.1.0",
+      "target_dir": "android",
+      "asset_suffixes": [".apk"]
+    }
+  ]
+}
